@@ -1,0 +1,452 @@
+import ast
+import copy
+from pathlib import Path
+from graphlib import TopologicalSorter
+
+# Python to Funkey Trees Converter by Whills v1.0
+
+functions = {}
+func_returns = {}
+
+class Substituter(ast.NodeTransformer):
+    def __init__(self, env, func_returns, constants=None):
+        self.env = env
+        self.func_returns = func_returns
+        self.constants = constants or {}
+
+    def visit_Name(self, node):
+        if node.id in self.env:
+            return copy.deepcopy(self.env[node.id])
+        elif node.id in self.constants:
+            return copy.deepcopy(self.constants[node.id])
+        return node
+
+    def visit_Call(self, node):
+        if isinstance(node.func, ast.Name):
+            name = node.func.id
+            if name in self.func_returns:
+                expr = copy.deepcopy(self.func_returns[name])
+                # Get the function definition to map parameters
+                func_def = functions[name]  # Assuming 'functions' is in scope or passed
+                if len(node.args) != len(func_def.args.args):
+                    raise ValueError(f"Argument count mismatch for {name}")
+                # Create a temp env for parameter substitution
+                param_env = {arg.arg: copy.deepcopy(node.args[i]) for i, arg in enumerate(func_def.args.args)}
+                # Substitute parameters in the expression
+                expr = Substituter(param_env, self.func_returns).visit(expr)
+                ast.fix_missing_locations(expr)
+                return expr
+        return self.generic_visit(node)
+
+
+def replace_none(node, replacement):
+    if isinstance(node, ast.Name) and node.id == 'None':
+        return copy.deepcopy(replacement)
+    elif isinstance(node, ast.IfExp):
+        node.body = replace_none(node.body, replacement)
+        node.orelse = replace_none(node.orelse, replacement)
+        return node
+    else:
+        # For other nodes, recurse if they have child nodes
+        for child in ast.iter_child_nodes(node):
+            replace_none(child, replacement)
+        return node
+
+def replace_none_with_orelse(node):
+    if isinstance(node, ast.IfExp):
+        if not (isinstance(node.orelse, ast.Name) and node.orelse.id == 'None'):
+            if isinstance(node.body, ast.IfExp) and isinstance(node.body.orelse, ast.Name) and node.body.orelse.id == 'None':
+                node.body.orelse = copy.deepcopy(node.orelse)
+            replace_none_with_orelse(node.body)
+            replace_none_with_orelse(node.orelse)
+
+def reduce_block_to_return(body_stmts, env, func_returns):
+    local_env = env.copy()
+    ret_expr = None
+    for stmt in body_stmts:
+        if isinstance(stmt, ast.Return):
+            ret_value = copy.deepcopy(stmt.value)
+            ret_value = Substituter(local_env, func_returns).visit(ret_value)
+            ast.fix_missing_locations(ret_value)
+            if ret_expr is None:
+                ret_expr = ret_value
+            else:
+                replace_none(ret_expr, ret_value)
+        elif isinstance(stmt, ast.Assign):
+            target = stmt.targets[0]
+            if isinstance(target, ast.Name):
+                value = copy.deepcopy(stmt.value)
+                value = Substituter(local_env, func_returns).visit(value)
+                ast.fix_missing_locations(value)
+                local_env[target.id] = value
+        elif isinstance(stmt, ast.AugAssign):
+            if isinstance(stmt.target, ast.Name):
+                var_name = stmt.target.id
+                current_value = local_env.get(var_name, ast.Name(id=var_name))
+                value = copy.deepcopy(stmt.value)
+                value = Substituter(local_env, func_returns).visit(value)
+                ast.fix_missing_locations(value)
+                new_value = ast.BinOp(left=current_value, op=stmt.op, right=value)
+                ast.fix_missing_locations(new_value)
+                local_env[var_name] = new_value
+        elif isinstance(stmt, ast.If):
+            ret_expr = reduce_if_chain(stmt, local_env, func_returns)
+        elif isinstance(stmt, ast.Pass):
+            pass
+        elif isinstance(stmt, ast.Expr):
+            pass  # Skip expressions
+        else:
+            raise ValueError(f"Unsupported statement in block: {type(stmt)}")
+    return ret_expr
+
+def reduce_if_chain(node, env, func_returns):
+    if isinstance(node, ast.If):
+        test = copy.deepcopy(node.test)
+        test = Substituter(env, func_returns).visit(test)
+        ast.fix_missing_locations(test)
+        body_ret = reduce_block_to_return(node.body, env, func_returns)
+        if len(node.orelse) == 0:
+            orelse_ret = ast.Name(id='None')
+        else:
+            orelse_ret = reduce_block_to_return(node.orelse, env, func_returns)
+        return ast.IfExp(test=test, body=body_ret, orelse=orelse_ret)
+    else:
+        raise ValueError("Not an if")
+
+def contains_return(block):
+    for stmt in block:
+        if isinstance(stmt, ast.Return):
+            return True
+        if isinstance(stmt, ast.If):
+            if contains_return(stmt.body) or contains_return(stmt.orelse):
+                return True
+    return False
+
+def reduce_function_to_expr(func_def, func_returns):
+    env = {}
+    ret_expr = None
+
+    for stmt in func_def.body:
+        if isinstance(stmt, ast.Assign):
+            target = stmt.targets[0]
+            if not isinstance(target, ast.Name):
+                raise ValueError("Only simple assignments supported")
+
+            value = copy.deepcopy(stmt.value)
+            value = Substituter(env, func_returns).visit(value)
+            ast.fix_missing_locations(value)
+            env[target.id] = value
+
+        elif isinstance(stmt, ast.AugAssign):
+            if not isinstance(stmt.target, ast.Name):
+                raise ValueError("Only simple augmented assignments supported")
+
+            var_name = stmt.target.id
+            if var_name not in env:
+                raise ValueError(f"Variable {var_name} not defined before augmented assignment")
+
+            current_value = copy.deepcopy(env[var_name])
+            aug_value = copy.deepcopy(stmt.value)
+            aug_value = Substituter(env, func_returns).visit(aug_value)
+            ast.fix_missing_locations(aug_value)
+            new_value = ast.BinOp(left=current_value, op=stmt.op, right=aug_value)
+            ast.fix_missing_locations(new_value)
+            env[var_name] = new_value
+
+        elif isinstance(stmt, ast.If):
+            if contains_return([stmt]):
+                if_expr = reduce_if_chain(stmt, env, func_returns)
+                if ret_expr is None:
+                    ret_expr = if_expr
+                else:
+                    replace_none(ret_expr, if_expr)
+            else:
+                # Handle as assignment if, supporting elif
+                body_dict = reduce_block_to_dict(stmt.body, env, func_returns)
+                orelse_dict = reduce_block_to_dict(stmt.orelse, env, func_returns)
+                test = copy.deepcopy(stmt.test)
+                test = Substituter(env, func_returns).visit(test)
+                ast.fix_missing_locations(test)
+                all_targets = set(body_dict) | set(orelse_dict)
+                for target in all_targets:
+                    body_expr = body_dict.get(target, ast.Name(id=target))
+                    orelse_expr = orelse_dict.get(target, ast.Name(id=target))
+                    ternary = ast.IfExp(test=test, body=body_expr, orelse=orelse_expr)
+                    env[target] = ternary
+
+        elif isinstance(stmt, ast.Return):
+            ret_value = copy.deepcopy(stmt.value)
+            ret_value = Substituter(env, func_returns).visit(ret_value)
+            ast.fix_missing_locations(ret_value)
+            if ret_expr is None:
+                ret_expr = ret_value
+            else:
+                replace_none(ret_expr, ret_value)
+
+        elif isinstance(stmt, ast.Global):
+            pass  # Ignore global declarations
+
+        else:
+            raise ValueError("Unsupported statement in helper")
+
+    if ret_expr is None:
+        raise ValueError(f"{func_def.name} has no return")
+    replace_none_with_orelse(ret_expr)
+    return ret_expr
+
+def reduce_block_to_dict(block_stmts, env, func_returns, constants=None):
+    result = {}
+    for stmt in block_stmts:
+        if isinstance(stmt, ast.Assign):
+            target = stmt.targets[0]
+            if not isinstance(target, ast.Name):
+                raise ValueError("Only simple assignments supported")
+            value = copy.deepcopy(stmt.value)
+            value = Substituter(env, func_returns, constants).visit(value)
+            ast.fix_missing_locations(value)
+            result[target.id] = value
+        elif isinstance(stmt, ast.AugAssign):
+            if not isinstance(stmt.target, ast.Name):
+                raise ValueError("Only simple augmented assignments supported")
+            var_name = stmt.target.id
+            current_value = env.get(var_name, ast.Name(id=var_name))
+            value = copy.deepcopy(stmt.value)
+            value = Substituter(env, func_returns, constants).visit(value)
+            ast.fix_missing_locations(value)
+            new_value = ast.BinOp(left=current_value, op=stmt.op, right=value)
+            ast.fix_missing_locations(new_value)
+            result[var_name] = new_value
+        elif isinstance(stmt, ast.If):
+            body_dict = reduce_block_to_dict(stmt.body, env, func_returns)
+            orelse_dict = reduce_block_to_dict(stmt.orelse, env, func_returns)
+            test = copy.deepcopy(stmt.test)
+            test = Substituter(env, func_returns).visit(test)
+            ast.fix_missing_locations(test)
+            all_targets = set(body_dict) | set(orelse_dict)
+            for target in all_targets:
+                body_expr = body_dict.get(target, ast.Name(id=target))
+                orelse_expr = orelse_dict.get(target, ast.Name(id=target))
+                ternary = ast.IfExp(test=test, body=body_expr, orelse=orelse_expr)
+                result[target] = ternary
+
+        elif isinstance(stmt, ast.Return):
+            pass  # Skip returns in assignment blocks
+        else:
+            raise ValueError("Unsupported statement in block")
+    return result
+
+def emit_c_style(node):
+    if isinstance(node, ast.BinOp):
+        left = emit_c_style(node.left)
+        right = emit_c_style(node.right)
+        op = type(node.op).__name__
+        ops = {
+            "Add": "+", "Sub": "-", "Mult": "*", "Div": "/", "Mod": "%",
+            "Pow": "**"  # adjust if needed
+        }
+        return f"({left} {ops[op]} {right})"
+
+    elif isinstance(node, ast.Name):
+        return node.id
+
+    elif isinstance(node, ast.Constant):
+        if isinstance(node.value, bool):
+            return str(node.value).lower()
+        else:
+            return repr(node.value)
+
+    elif isinstance(node, ast.Call):
+        func = emit_c_style(node.func)
+        args = ", ".join(emit_c_style(a) for a in node.args)
+        return f"{func}({args})"
+
+    elif isinstance(node, ast.IfExp):
+        test = emit_c_style(node.test)
+        body = emit_c_style(node.body)
+        orelse = emit_c_style(node.orelse)
+        return f"({test} ? {body} : {orelse})"
+
+    elif isinstance(node, ast.UnaryOp):
+        operand = emit_c_style(node.operand)
+        if isinstance(node.op, ast.USub):   # unary minus
+            return f"-{operand}"
+        elif isinstance(node.op, ast.Not):  # Python 'not'
+            return f"!{operand}"            # convert to FT '!'
+        else:
+            raise ValueError(f"Unsupported unary operator: {type(node.op).__name__}")
+        
+    elif isinstance(node, ast.Compare):
+        if len(node.ops) != 1 or len(node.comparators) != 1:
+            raise ValueError("Only single comparisons supported")
+        left = emit_c_style(node.left)
+        right = emit_c_style(node.comparators[0])
+        op = node.ops[0]
+        ops = {
+            ast.Eq: "==",
+            ast.NotEq: "!=",
+            ast.Lt: "<",
+            ast.LtE: "<=",
+            ast.Gt: ">",
+            ast.GtE: ">="
+        }
+        op_str = ops[type(op)]
+        return f"({left} {op_str} {right})"
+    elif isinstance(node, ast.BoolOp):
+        op = node.op
+        if isinstance(op, ast.And):
+            op_str = "&"
+        elif isinstance(op, ast.Or):
+            op_str = "|"
+        else:
+            raise ValueError(f"Unsupported boolean operator: {type(op)}")
+        parts = [emit_c_style(v) for v in node.values]
+        return "(" + f" {op_str} ".join(parts) + ")"
+
+    elif isinstance(node, ast.Attribute):
+        # Simply emit "process.pitchControl" as "pitchControl"
+        return node.attr
+
+    else:
+        raise ValueError(f"Unsupported node: {type(node)}")
+
+def py_to_ft():
+    # ---------- load source ----------
+
+    p = Path(__file__).resolve().parent.parent
+    py_files = [f for f in sorted(p.iterdir()) if f.is_file() and f.suffix == ".py" and f.name != "_click_to_run.py"]
+    if not py_files:
+        raise FileNotFoundError("No .py files found in parent directory")
+    first_py = py_files[0]
+
+    with first_py.open("r", encoding="utf-8") as source_file:
+        tree = ast.parse(source_file.read())
+
+    # ---------- collect globals ----------
+
+    global_exprs = {}
+
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            target = node.targets[0]
+            if isinstance(target, ast.Name):
+                global_exprs[target.id] = node.value
+
+    # Extract main_loop_name from globals
+    try:
+        main_loop_name = ast.literal_eval(global_exprs['main_loop_name'])
+    except KeyError:
+        main_loop_name = '_process'
+
+    # ---------- collect functions ----------
+
+    def collect_functions(node, functions):
+        if isinstance(node, ast.FunctionDef):
+            functions[node.name] = node
+        elif isinstance(node, ast.ClassDef):
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef):
+                    functions[item.name] = item
+        for child in ast.iter_child_nodes(node):
+            collect_functions(child, functions)
+
+    def collect_called_functions(func_def):
+        called = set()
+        for node in ast.walk(func_def):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                called.add(node.func.id)
+        return called
+
+    collect_functions(tree, functions)
+
+    # Build dependency graph for helper functions
+    helper_funcs = {name: func for name, func in functions.items() if name != main_loop_name}
+    dependencies = {name: collect_called_functions(func) & set(helper_funcs.keys()) for name, func in helper_funcs.items()}
+
+    # Topological sort
+    ts = TopologicalSorter(dependencies)
+    order = list(ts.static_order())
+
+    # Reduce functions in dependency order
+    for name in order:
+        func = helper_funcs[name]
+        try:
+            func_returns[name] = reduce_function_to_expr(func, func_returns)
+        except ValueError:
+            print(f"Function {name} cannot be reduced")  # Ignore functions that cannot be reduced (e.g., no return, unsupported statements)
+            pass
+
+    # ---------- find main process ----------
+
+    process_func = functions.get(main_loop_name)
+    if process_func:
+        main_body = process_func.body
+    else:
+        main_body = [node for node in tree.body if isinstance(node, ast.Assign)]
+        print(f"main loop function not found, will convert only global variables")
+
+    # ---------- ordered reduction ----------
+
+    env = {}
+    constants = {}
+
+    for stmt in main_body:
+        if isinstance(stmt, ast.Assign):
+            target = stmt.targets[0]
+            if not isinstance(target, ast.Name):
+                raise ValueError("Only simple assignments supported")
+
+            if isinstance(stmt.value, ast.Constant):
+                constants[target.id] = stmt.value
+            else:
+                value = copy.deepcopy(stmt.value)
+                value = Substituter(env, func_returns).visit(value)
+                ast.fix_missing_locations(value)
+
+                env[target.id] = value
+
+        elif isinstance(stmt, ast.AugAssign):
+            if not isinstance(stmt.target, ast.Name):
+                raise ValueError("Only simple augmented assignments supported")
+
+            var_name = stmt.target.id
+            current_value = env.get(var_name, ast.Name(id=var_name))
+            value = copy.deepcopy(stmt.value)
+            value = Substituter(env, func_returns, constants).visit(value)
+            ast.fix_missing_locations(value)
+            new_value = ast.BinOp(left=current_value, op=stmt.op, right=value)
+            ast.fix_missing_locations(new_value)
+            env[var_name] = new_value
+
+        elif isinstance(stmt, ast.If):
+            body_dict = reduce_block_to_dict(stmt.body, env, func_returns, constants)
+            orelse_dict = reduce_block_to_dict(stmt.orelse, env, func_returns, constants)
+            test = copy.deepcopy(stmt.test)
+            ast.fix_missing_locations(test)
+            all_targets = set(body_dict) | set(orelse_dict)
+            for target in all_targets:
+                body_expr = body_dict.get(target, ast.Name(id=target))
+                orelse_expr = orelse_dict.get(target, ast.Name(id=target))
+                ternary = ast.IfExp(test=test, body=body_expr, orelse=orelse_expr)
+                env[target] = ternary
+
+        else:
+            continue
+
+    # Add constants that were not overridden
+    for var, val in constants.items():
+        if var not in env:
+            env[var] = val
+
+    # ---------- emit results ----------
+
+    # first: constants not overwritten by process()
+    for name, expr in global_exprs.items():
+        if name not in env and name != "main_loop_name":
+            print(f"{name} = {emit_c_style(expr)}\n")
+
+    # then: reduced process variables (in order)
+    for name, expr in env.items():
+        print(f"{name} = {emit_c_style(expr)}\n")
+
+if __name__ == "__main__":
+    py_to_ft()
