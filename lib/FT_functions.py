@@ -3,6 +3,9 @@
 
 from math import *
 
+# special variable
+delta = 0.0 # time difference between current and last frame in seconds
+
 # flight inputs
 Pitch = 0.0
 Roll = 0.0

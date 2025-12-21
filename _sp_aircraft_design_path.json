@@ -1,0 +1,7 @@
+{
+    "_comment": 
+    "below is the path to your SimplePlanes AircraftDesigns folder, if left empty, generated FT codes will be saved in the current folder",
+
+    "sp_blueprint_path" : 
+    "/media/whills/Windows/Users/wills/AppData/LocalLow/Jundroo/SimplePlanes/AircraftDesigns/"
+}

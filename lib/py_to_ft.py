@@ -313,7 +313,7 @@ def py_to_ft():
     # ---------- load source ----------
 
     p = Path(__file__).resolve().parent.parent
-    py_files = [f for f in sorted(p.iterdir()) if f.is_file() and f.suffix == ".py" and f.name != "_click_to_run.py"]
+    py_files = [f for f in sorted(p.iterdir()) if f.is_file() and f.suffix == ".py" and not f.name.startswith("_")]
     if not py_files:
         raise FileNotFoundError("No .py files found in parent directory")
     first_py = py_files[0]
@@ -337,6 +337,16 @@ def py_to_ft():
     except KeyError:
         main_loop_name = '_process'
 
+    # Extract exclude list if present
+    exclude_list = []
+    if 'exclude' in global_exprs:
+        try:
+            exclude_list = ast.literal_eval(global_exprs['exclude'])
+            if not isinstance(exclude_list, list):
+                exclude_list = []
+        except:
+            exclude_list = []
+
     # ---------- collect functions ----------
 
     def collect_functions(node, functions):
@@ -357,6 +367,52 @@ def py_to_ft():
         return called
 
     collect_functions(tree, functions)
+
+    # Collect and process imported modules (excluding FT_functions)
+    processed_modules = set()
+
+    def process_module(mod_name):
+        if mod_name in processed_modules or 'FT_functions' in mod_name:
+            return
+        processed_modules.add(mod_name)
+        parts = mod_name.split('.')
+        if len(parts) == 1:
+            mod_file = p / f"{mod_name}.py"
+        else:
+            mod_file = p.joinpath(*parts[:-1]) / f"{parts[-1]}.py"
+        if mod_file.exists():
+            with mod_file.open("r", encoding="utf-8") as f:
+                mod_tree = ast.parse(f.read())
+            collect_functions(mod_tree, functions)
+            # Collect its own imports
+            mod_imported = set()
+            for node in ast.walk(mod_tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        m = alias.name
+                        if 'FT_functions' not in m:
+                            mod_imported.add(m)
+                elif isinstance(node, ast.ImportFrom):
+                    m = node.module
+                    if m and 'FT_functions' not in m:
+                        mod_imported.add(m)
+            for m in mod_imported:
+                process_module(m)
+
+    imported_modules = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                mod_name = alias.name
+                if 'FT_functions' not in mod_name:
+                    imported_modules.add(mod_name)
+        elif isinstance(node, ast.ImportFrom):
+            mod_name = node.module
+            if mod_name and 'FT_functions' not in mod_name:
+                imported_modules.add(mod_name)
+
+    for mod_name in imported_modules:
+        process_module(mod_name)
 
     # Build dependency graph for helper functions
     helper_funcs = {name: func for name, func in functions.items() if name != main_loop_name}
@@ -441,12 +497,17 @@ def py_to_ft():
 
     # first: constants not overwritten by process()
     for name, expr in global_exprs.items():
-        if name not in env and name != "main_loop_name":
-            print(f"{name} = {emit_c_style(expr)}\n")
+        if name not in env and name != "main_loop_name" and name != "exclude" and name not in exclude_list:
+            # if not a string constant
+            if not (isinstance(expr, ast.Constant) and isinstance(expr.value, str)):
+                print(f"{name} = {emit_c_style(expr)}\n")
 
     # then: reduced process variables (in order)
     for name, expr in env.items():
-        print(f"{name} = {emit_c_style(expr)}\n")
+        if name not in exclude_list:
+            # if not a string constant
+            if not (isinstance(expr, ast.Constant) and isinstance(expr.value, str)):
+                print(f"{name} = {emit_c_style(expr)}\n")
 
 if __name__ == "__main__":
     py_to_ft()
