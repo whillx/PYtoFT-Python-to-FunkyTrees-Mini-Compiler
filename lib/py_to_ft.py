@@ -9,10 +9,11 @@ functions = {}
 func_returns = {}
 
 class Substituter(ast.NodeTransformer):
-    def __init__(self, env, func_returns, constants=None):
+    def __init__(self, env, func_returns, constants=None, substitute_args=True):
         self.env = env
         self.func_returns = func_returns
         self.constants = constants or {}
+        self.substitute_args = substitute_args #substitute_args is used to avoid argument substitution in function calls within main process
 
     def visit_Name(self, node):
         if node.id in self.env:
@@ -31,9 +32,17 @@ class Substituter(ast.NodeTransformer):
                 if len(node.args) != len(func_def.args.args):
                     raise ValueError(f"Argument count mismatch for {name}")
                 # Create a temp env for parameter substitution
-                param_env = {arg.arg: copy.deepcopy(node.args[i]) for i, arg in enumerate(func_def.args.args)}
+                if self.substitute_args:
+                    param_env = {}
+                    for i, arg in enumerate(func_def.args.args):
+                        substituted_arg = copy.deepcopy(node.args[i])
+                        substituted_arg = Substituter(self.env, self.func_returns, self.constants, self.substitute_args).visit(substituted_arg)
+                        ast.fix_missing_locations(substituted_arg)
+                        param_env[arg.arg] = substituted_arg
+                else:
+                    param_env = {arg.arg: copy.deepcopy(node.args[i]) for i, arg in enumerate(func_def.args.args)}
                 # Substitute parameters in the expression
-                expr = Substituter(param_env, self.func_returns).visit(expr)
+                expr = Substituter(param_env, self.func_returns, self.constants, self.substitute_args).visit(expr)
                 ast.fix_missing_locations(expr)
                 return expr
         return self.generic_visit(node)
@@ -202,7 +211,7 @@ def reduce_block_to_dict(block_stmts, env, func_returns, constants=None):
             if not isinstance(target, ast.Name):
                 raise ValueError("Only simple assignments supported")
             value = copy.deepcopy(stmt.value)
-            value = Substituter(env, func_returns, constants).visit(value)
+            value = Substituter(env, func_returns, constants, False).visit(value)
             ast.fix_missing_locations(value)
             result[target.id] = value
         elif isinstance(stmt, ast.AugAssign):
@@ -211,14 +220,14 @@ def reduce_block_to_dict(block_stmts, env, func_returns, constants=None):
             var_name = stmt.target.id
             current_value = env.get(var_name, ast.Name(id=var_name))
             value = copy.deepcopy(stmt.value)
-            value = Substituter(env, func_returns, constants).visit(value)
+            value = Substituter(env, func_returns, constants, False).visit(value)
             ast.fix_missing_locations(value)
             new_value = ast.BinOp(left=current_value, op=stmt.op, right=value)
             ast.fix_missing_locations(new_value)
             result[var_name] = new_value
         elif isinstance(stmt, ast.If):
-            body_dict = reduce_block_to_dict(stmt.body, env, func_returns)
-            orelse_dict = reduce_block_to_dict(stmt.orelse, env, func_returns)
+            body_dict = reduce_block_to_dict(stmt.body, env, func_returns, constants)
+            orelse_dict = reduce_block_to_dict(stmt.orelse, env, func_returns, constants)
             test = copy.deepcopy(stmt.test)
             test = Substituter(env, func_returns).visit(test)
             ast.fix_missing_locations(test)
@@ -231,6 +240,10 @@ def reduce_block_to_dict(block_stmts, env, func_returns, constants=None):
 
         elif isinstance(stmt, ast.Return):
             pass  # Skip returns in assignment blocks
+        elif isinstance(stmt, ast.Expr):
+            pass  # Skip expressions
+        elif isinstance(stmt, ast.Pass):
+            pass
         else:
             raise ValueError("Unsupported statement in block")
     return result
@@ -317,9 +330,20 @@ def py_to_ft():
     if not py_files:
         raise FileNotFoundError("No .py files found in parent directory")
     first_py = py_files[0]
-
     with first_py.open("r", encoding="utf-8") as source_file:
         tree = ast.parse(source_file.read())
+
+    # ---------- Collect names from FT_functions.py to skip ---------- 
+    ft_names = set()
+    ft_file = p / "lib" / "FT_functions.py"
+    if ft_file.exists():
+        with ft_file.open("r", encoding="utf-8") as f:
+            ft_tree = ast.parse(f.read())
+        for node in ft_tree.body:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        ft_names.add(target.id)
 
     # ---------- collect globals ----------
 
@@ -435,7 +459,7 @@ def py_to_ft():
 
     process_func = functions.get(main_loop_name)
     if process_func:
-        main_body = process_func.body
+        main_body = process_func.body + [node for node in tree.body if isinstance(node, ast.If)]
     else:
         main_body = [node for node in tree.body if isinstance(node, ast.Assign)]
         print(f"main loop function not found, will convert only global variables")
@@ -455,7 +479,7 @@ def py_to_ft():
                 constants[target.id] = stmt.value
             else:
                 value = copy.deepcopy(stmt.value)
-                value = Substituter(env, func_returns).visit(value)
+                value = Substituter(env, func_returns).visit(value) # substitute_args=False does not work here, it prevents function calls arguments in main process from being substituted
                 ast.fix_missing_locations(value)
 
                 env[target.id] = value
@@ -467,7 +491,7 @@ def py_to_ft():
             var_name = stmt.target.id
             current_value = env.get(var_name, ast.Name(id=var_name))
             value = copy.deepcopy(stmt.value)
-            value = Substituter(env, func_returns, constants).visit(value)
+            value = Substituter(env, func_returns, constants, False).visit(value)
             ast.fix_missing_locations(value)
             new_value = ast.BinOp(left=current_value, op=stmt.op, right=value)
             ast.fix_missing_locations(new_value)
@@ -477,6 +501,7 @@ def py_to_ft():
             body_dict = reduce_block_to_dict(stmt.body, env, func_returns, constants)
             orelse_dict = reduce_block_to_dict(stmt.orelse, env, func_returns, constants)
             test = copy.deepcopy(stmt.test)
+            test = Substituter(env, func_returns, substitute_args=False).visit(test)
             ast.fix_missing_locations(test)
             all_targets = set(body_dict) | set(orelse_dict)
             for target in all_targets:
@@ -497,14 +522,14 @@ def py_to_ft():
 
     # first: constants not overwritten by process()
     for name, expr in global_exprs.items():
-        if name not in env and name != "main_loop_name" and name != "exclude" and name not in exclude_list:
+        if name not in env and name != "main_loop_name" and name != "exclude" and name not in exclude_list and name not in ft_names:
             # if not a string constant
             if not (isinstance(expr, ast.Constant) and isinstance(expr.value, str)):
                 print(f"{name} = {emit_c_style(expr)}\n")
 
     # then: reduced process variables (in order)
     for name, expr in env.items():
-        if name not in exclude_list:
+        if name not in exclude_list and name not in ft_names:
             # if not a string constant
             if not (isinstance(expr, ast.Constant) and isinstance(expr.value, str)):
                 print(f"{name} = {emit_c_style(expr)}\n")

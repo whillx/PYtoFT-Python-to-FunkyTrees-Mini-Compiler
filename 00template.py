@@ -28,14 +28,14 @@ def _process(delta) -> None:
 
     # control logics, only simple if-else statements and variable assignments are allowed, do not use loops!
     pitch_damper = get_pitch_damper(0.5)
-    autotrim = get_autotrim(0.2)
+    pitchtrim = get_pitchtrim(0.2)
     AOA = get_AOA() # this is also an imported function
     mach_number = get_mach_number()
     gear_control = 0 if smooth(LandingGear, 0.5) < 0.5 else 1
     engine_on = True if Activate8 else False
 
     if IAS > 30:
-        pitch_control = clamp11(Pitch + pitch_damper + autotrim) # clamp11() is a function that imported from _common_FCS.py
+        pitch_control = clamp11(smooth(Pitch,1.5) + pitch_damper + pitchtrim) # clamp11() is a function that imported from _common_FCS.py
         roll_control = clamp11(Roll - RollRate*0.05)
         yaw_control = clamp11(Yaw - YawRate*0.05)
     elif IAS > 5:
@@ -44,8 +44,8 @@ def _process(delta) -> None:
         yaw_control = Yaw
     else:
         pitch_control = Pitch * 1.2
-        yaw_control = Yaw * 1.2
         roll_control = Roll * 1.2
+        yaw_control = Yaw * 1.2
 
     if IAS > 30 and AltitudeAgl > min_altitude:
         brake_control = Brake
@@ -65,17 +65,15 @@ def _process(delta) -> None:
     else:
         throttle_control = 0.0
 
-    print("end of main loop")
     print(pitch_control, roll_control, yaw_control, throttle_control)
+    print("end of main loop")
 
 # below are helper functions, make sure all functions have return values in all cases.
 # it's not recommended to call other helper functions inside helper functions
 # and do not use recursion!
-def get_autotrim(max_trim) -> float:
-    if TargetSelected:
-        return 0.0
-    elif engine_on == False:
-        return 0.0
+def get_pitchtrim(max_trim) -> float:
+    low_spd_trim = 0.2*clamp11(inverselerp(100,50,IAS))
+    return low_spd_trim + get_AOA_feedback(low_spd_trim)*(max_trim-0.2)
 
 def get_AOA_feedback(pitchinput) -> float:
     global AOA
@@ -98,7 +96,7 @@ def toggle_gear(temp)-> bool:
     global engine_on
     pass
 
-# optional: you can call the main function for debugging
+# optional: you can simulate the game loop for debugging
 if __name__ == "__main__":
     Activate8 = True
     Pitch = 0.1
@@ -107,4 +105,5 @@ if __name__ == "__main__":
     IAS = 50.0
     AltitudeAgl = 20.0
     Throttle = 0.5
+    # while True:
     globals()[main_loop_name](0.01)
