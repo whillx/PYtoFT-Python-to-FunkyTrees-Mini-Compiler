@@ -112,6 +112,7 @@ def bar()-> float :
 > - Classes
 > - Recursion
 > - Default arguments
+>
 > If you want to reconfigure the directory of your target output folder, you can delete _PY_to_FT_config.json and run the application again.
 
 > [!CAUTION]
