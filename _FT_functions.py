@@ -1,5 +1,6 @@
 # Minimal Funky Trees environment for Python debugging
 # It is recommended to import this file when writing your script in an IDE.
+# Do not delete this file!
 from math import *
 
 # flight inputs
@@ -115,30 +116,55 @@ def smoothstep(a, b, t):
     t = clamp01((t - a) / (b - a))
     return t * t * (3 - 2 * t)
 
-def sum(x):
-    if not hasattr(sum, 'total'):
-        sum.total = 0
-    sum.total += x
-    return sum.total
+# for the following functions, we cannot simulate them since they need to use memories.
 
 def rate(x):
-    if not hasattr(rate, 'last_value'):
-        rate.last_value = x
-        return 0
-    delta = x - rate.last_value
-    rate.last_value = x
-    return delta
+    return 1
+    # if not hasattr(rate, "outputs"):
+    #     rate.outputs = {}
+    # key = id(x)
+    # if key not in rate.outputs:
+    #     rate.outputs[key] = x  # store the initial value
+    #     print("not")
+    #     return 0
+    # frame_time = 0.01
+    # prev_x = rate.outputs[key]
+    # delta = x - prev_x
+    # rate.outputs[key] = x  # update stored value for next call
+    # return delta / frame_time
+
+def sum(x):
+    return 1
+    # if not hasattr(sum, "outputs"):
+    #     sum.outputs = {}
+    # key = id(x)
+    # if key not in sum.outputs:
+    #     print("not")
+    #     sum.outputs[key] = 0  # initialize with 0
+    # sum.outputs[key] += x
+    # return sum.outputs[key]
 
 def smooth(x, t):
-    if not hasattr(smooth, 'output'):
-        smooth.output = x
-    max_change = t
-    if smooth.output < x:
-        smooth.output = min(smooth.output + max_change, x)
-    else:
-        smooth.output = max(smooth.output - max_change, x)
-    return smooth.output
+    return 1
+    # if not hasattr(smooth, "outputs"):
+    #     smooth.outputs = {}
+
+    # # Use the object's id as a key
+    # key = id(x)
+
+    # if key not in smooth.outputs:
+    #     smooth.outputs[key] = x  # initialize state
+
+    # prev = smooth.outputs[key]
+
+    # if prev < x:
+    #     smooth.outputs[key] = min(prev + t, x)
+    # else:
+    #     smooth.outputs[key] = max(prev - t, x)
+
+    # return smooth.outputs[key]
 
 def PID(target, current, p, i, d):
-    error = target - current
-    return p * error + i * sum(error) - d * rate(current)
+    return 1
+    # error = target - current
+    # return p * error + i * sum(error) - d * rate(current)

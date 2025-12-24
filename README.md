@@ -11,6 +11,8 @@ The tool can:
 - Update the .xml file next to your .py script, or
 - Output the generated XML code directly to the console for copy-paste use.
 
+![demo image](images/demo.jpg)
+
 > [!CAUTION]
 > - It is not recommended to use this tool unless you are familiar with the basics of Python and how Funky Trees work in SimplePlanes.
 > - Incorrectly written Python code may result in conversion errors or unexpected in-game behavior. Use this tool at your own risk.
@@ -47,7 +49,7 @@ The tool can:
 
 Full working demo script: [demo script](0_demo_plane.py)
 
-Demo Plane XML: [Pyphoon demo plane](0_demo_plane.xml)
+Demo airplane XML: [Pyphoon demo plane](0_demo_plane.xml)
 
 - The Python script must have the same name as the target SimplePlanes .xml craft file.
 - Do not start your file name with an underscore.
@@ -116,7 +118,7 @@ def bar()-> float :
 > If you want to reconfigure the directory of your target output folder, you can delete _PY_to_FT_config.json and run the application again.
 
 > [!CAUTION]
-> Always back up your `.xml` craft file before running the conversion.
+> Always backup your `.xml` craft file before running the conversion.
 > The conversion will overwrite ALL Funky Trees codes you have already written in game in Variable Setters.
 
 If you find this work useful, any amount of support would be appreciated: [Patreon](https://www.patreon.com/c/WhillsBuildsPlanes)
