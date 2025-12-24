@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from lib.FT_converter import py_to_ft, load_py_file
 from lib.write_to_xml import insert_variables_text
 import json

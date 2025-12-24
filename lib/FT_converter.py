@@ -1,5 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 import ast
 import copy
+import os
+import sys
 import time
 from pathlib import Path
 from graphlib import TopologicalSorter
@@ -326,7 +329,17 @@ def emit_c_style(node):
         raise ValueError(f"Unsupported node: {type(node)}")
 
 def load_py_file() -> list:
-    p = Path(__file__).resolve().parent.parent
+
+    def get_executable_dir() -> Path:
+        if getattr(sys, 'frozen', False):
+            # Running as a PyInstaller executable
+            return Path(os.path.dirname(sys.executable))
+        else:
+            # Running as a normal Python script
+            return Path(os.path.dirname(os.path.abspath(__file__))).parent
+
+    p = get_executable_dir()
+    #print(p)
     py_files = [f for f in sorted(p.iterdir()) if f.is_file() and f.suffix == ".py" and not f.name.startswith("_")]
     return py_files
 

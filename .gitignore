@@ -1,0 +1,10 @@
+.vscode
+/build/
+/dist/
+/__pycache__/
+/lib/__pycache__/
+_user
+*.spec
+
+
+_PY_to_FT_config.json

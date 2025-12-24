@@ -1,6 +1,6 @@
 # PYtoFT
 Python to Funky Trees Mini Compiler
-by Whills - v0.1
+by Whills
 
 ## Overview
 
@@ -40,6 +40,8 @@ python _PY_to_FT.py
 ```
 
 ## Example Script
+
+Download demo script: [demo script](0_demo_plane.py)
 
 - The Python script must have the same name as the target SimplePlanes .xml craft file.
 - Do not start your file name with an underscore.
@@ -89,3 +91,16 @@ def bar()-> float :
         return 0
 ...
 ```
+
+> [!NOTE]
+> This tool can only convert **simple functions**. The following Python features are **not currently supported**:
+> - Classes
+> - Recursion
+> - Default arguments
+
+> [!CAUTION]
+> Always back up your `.xml` craft file before running the conversion.
+
+If you find this work useful, any amount of support would be appreciated: [Patreon](https://www.patreon.com/c/WhillsBuildsPlanes)
+
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0-or-later).
