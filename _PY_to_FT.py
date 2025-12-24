@@ -103,7 +103,7 @@ def main():
         print(f"Writing to XML file: {source_xml_path.name} ....\n")
         write_to_xml = True
     else:
-        input(f"{source_xml_path.name} does not exist in {target_dir}. Output will be written to console. \n\n■ Press Enter to continue.\n")
+        input(f"{source_xml_path.name} does not exist in {source_py_path.parent}.\n\n■ Output will be written to console. Press Enter to continue.\n")
         write_to_xml = False
 
     # Convert dictionary to XML setter strings

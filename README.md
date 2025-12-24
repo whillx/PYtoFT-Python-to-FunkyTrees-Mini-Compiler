@@ -12,8 +12,8 @@ The tool can:
 - Output the generated XML code directly to the console for copy-paste use.
 
 > [!CAUTION]
->It is not recommended to use this tool unless you are familiar with the basics of Python and how Funky Trees work in SimplePlanes.
->Incorrectly written Python code may result in conversion errors or unexpected in-game behavior. Use this tool at your own risk.
+> - It is not recommended to use this tool unless you are familiar with the basics of Python and how Funky Trees work in SimplePlanes.
+> - Incorrectly written Python code may result in conversion errors or unexpected in-game behavior. Use this tool at your own risk.
 
 ## How It Works
 
@@ -112,6 +112,7 @@ def bar()-> float :
 > - Classes
 > - Recursion
 > - Default arguments
+> If you want to reconfigure the directory of your target output folder, you can delete _PY_to_FT_config.json and run the application again.
 
 > [!CAUTION]
 > Always back up your `.xml` craft file before running the conversion.
