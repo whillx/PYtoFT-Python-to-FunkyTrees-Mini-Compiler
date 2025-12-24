@@ -6,15 +6,16 @@ by Whills
 
 PYtoFT converts variables in a Python script into condensed, single-line functions compatible with the SimplePlanes Funky Trees system.
 
-The tool can either:
+The tool can:
 - Automatically update the .xml file of a SimplePlanes craft, or
-- Output the generated XML code directly to the console.
+- Update the .xml file next to your .py script, or
+- Output the generated XML code directly to the console for copy-paste use.
 
 ## How It Works
 
-- Parses variable definitions from a Python script.
+- Parses variable definitions from a Python script using [ast](https://docs.python.org/3/library/ast.html) module.
 - Converts them into SimplePlanes-compatible Funky Trees expressions.
-- Outputs the result as XML, either by injecting it into an existing craft file or printing it for manual use.
+- Outputs the result as XML code, either by injecting it into an existing craft file or printing it for manual use.
 
 ## How to Use (Windows)
 
@@ -24,7 +25,7 @@ The tool can either:
 - Double-click PY_to_FT.exe to start the conversion.
 - If you choose to export directly to your SimplePlanes .xml save:
     - Select the folder containing the .xml file.
-    - Ensure the .xml file has the same base name as your .py file.
+    - Ensure the .xml file has the SAME NAME as your .py file.
 - If you choose to export to the current directory:
     - Make sure the corresponding .xml file is already present in the same directory as the .py file.
 
@@ -35,9 +36,9 @@ The tool can either:
 - Download or clone the project
 
 - Run:
-```bash
-python _PY_to_FT.py
-```
+    ```bash
+    python _PY_to_FT.py
+    ```
 
 ## Example Script
 
