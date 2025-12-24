@@ -4,7 +4,7 @@ by Whills
 
 ## Overview
 
-PYtoFT converts variables in a Python script into condensed, single-line functions compatible with the SimplePlanes Funky Trees system.
+PYtoFT converts variables in a Python script into condensed, single-line functions compatible with the SimplePlanes / SimplePlanes2 Funky Trees system.
 
 The tool can:
 - Automatically update the .xml file of a SimplePlanes craft, or
@@ -28,6 +28,7 @@ The tool can:
     - Ensure the .xml file has the SAME NAME as your .py file.
 - If you choose to export to the current directory:
     - Make sure the corresponding .xml file is already present in the same directory as the .py file.
+- You may need to reload your aircraft in game to see the to your Funky Trees code changes.
 
 ## Run Locally (Python)
 
@@ -62,11 +63,20 @@ start_mission_timer = False
 # you can also do not write this function, then only global variables will be converted
 def _process() -> None:
     global min_altitude
+    global start_mission_timer
     mach_number = get_mach_number()
     if AltitudeAgl > min_altitude:
         pitch_control = Pitch - 0.01*PitchRate
     else:
         pitch_control = Pitch
+
+    if start_mission_timer:
+        if IAS > 50:
+            my_variable = foo(2000)
+        else:
+            my_variable = 0
+    else:
+        my_variable = -1
 
 # below are helper functions, make sure all functions have return values in all cases.
 # it's not recommended to call other helper functions inside helper functions.
@@ -90,7 +100,7 @@ def bar()-> float :
         return 5
     else:
         return 0
-...
+
 ```
 
 > [!NOTE]
@@ -101,6 +111,7 @@ def bar()-> float :
 
 > [!CAUTION]
 > Always back up your `.xml` craft file before running the conversion.
+> The conversion will overwrite ALL Funky Trees codes you have already written in game in Variable Setters.
 
 If you find this work useful, any amount of support would be appreciated: [Patreon](https://www.patreon.com/c/WhillsBuildsPlanes)
 

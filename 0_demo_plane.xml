@@ -5,24 +5,30 @@
     <Setter variable="timer" function="(start_mission_timer ? (timer + delta) : 0.0)" priority="0" />
     <Setter variable="AOA" function="lerp(-PitchAngle, (pingpong(abs(AngleOfAttack), 90) * sign(AngleOfAttack)), clamp01(((IAS - 5) / 10)))" priority="0" />
     <Setter variable="delta" function="(Time - last_frame_time)" priority="0" />
+    <Setter variable="AIControl" function="((FireWeapons &amp; (Time &lt; 1)) ? true : AIControl)" priority="0" />
     <Setter variable="engine_on" function="((Fuel &gt; 0.01) ? true : false)" priority="0" />
     <Setter variable="last_frame_time" function="Time" priority="0" />
+    <Setter variable="control_limiter" function="clamp((((40000 * pow(IAS, -2)) * (0.9 + (0.1 * Fuel))) * ((VerticalG &lt; 1) ? 0.5 : 1)), 0.01, 1)" priority="0" />
+    <Setter variable="Glimiter" function="smooth(((0.25 + (0.75 * inverselerp((9 + 1), (9 - 1), VerticalG))) - (0.75 * inverselerp((-3 + 1), (-3 - 1), VerticalG))), (0.2 + (0.3 * inverselerp(9, (9 + 2), VerticalG))))" priority="0" />
     <Setter variable="mach_number" function="(TAS / ((Altitude &lt; 11000) ? (340.3 - (0.0041 * Altitude)) : 295.2))" priority="0" />
-    <Setter variable="pitch_damper" function="((AltitudeAgl &lt; min_altitude) ? 0.0 : clamp((-clamp(PitchRate, -(90 * (0.5 + (0.5 * inverselerp(220, 150, IAS)))), (90 * (0.5 + (0.5 * inverselerp(220, 150, IAS))))) * 0.02), -0.5, 0.5))" priority="0" />
-    <Setter variable="AOA_feedback" function="smooth((clamp(((((40 * Pitch) - (20 * clamp01((abs(Roll) * 2)))) - AOA) * 0.02), -0.5, 0.5) * clamp01(Activate8)), 2)" priority="0" />
-    <Setter variable="canopy_opened" function="(Activate1 ? true : false)" priority="0" />
-    <Setter variable="yaw_control" function="((IAS &gt; 5) ? clamp((smooth(Yaw, 2) - (YawRate * 0.05)), -1, 1) : (!canopy_opened ? Yaw : (Yaw * 2)))" priority="0" />
-    <Setter variable="roll_control" function="((IAS &gt; 5) ? clamp((smooth(Roll, 2) + (RollRate * 0.005)), -1, 1) : (!canopy_opened ? smooth(Roll, 2) : (Roll * 2)))" priority="0" />
-    <Setter variable="pitch_control" function="((IAS &gt; 5) ? clamp((smooth(Pitch, 1.5) + pitch_damper), -1, 1) : (!canopy_opened ? smooth(clamp((Pitch + pitch_damper), -1, 1), 2) : (Pitch * 2)))" priority="0" />
-    <Setter variable="brake_control" function="(((IAS &gt; 30) &amp; (AltitudeAgl &gt; min_altitude)) ? Brake : 0.0)" priority="0" />
+    <Setter variable="pitch_damper" function="(((!engine_on ? 0.0 : clamp((-clamp(PitchRate, -180, 180) * (0.01 + (0.005 * inverselerp(400, 200, IAS)))), -1, 1)) * control_limiter) * inverselerp(2, 5, abs(PitchRate)))" priority="0" />
+    <Setter variable="roll_damper" function="((((RollRate * 0.005) * inverselerp(20, 200, IAS)) * control_limiter) * inverselerp(2, 8, abs(RollRate)))" priority="0" />
+    <Setter variable="yaw_damper" function="(((-YawRate * (0.02 + (0.03 * inverselerp(250, 100, IAS)))) * control_limiter) * inverselerp(1, 4, abs(YawRate)))" priority="0" />
+    <Setter variable="autotrim" function="((smooth(((0.2 * clamp01((Time &gt; 0.5))) * clamp(PID(clamp(((PitchAngle + AOA) - clamp01((0.2 - rate(Altitude)))), -1, 1), PitchRate, 2, 0, 0.2), -1, 1)), ((((0.03 * inverselerp(40, 15, abs(PitchAngle))) * inverselerp(35, 15, abs(RollAngle))) * inverselerp(20, 10, (abs(PitchRate) + abs(RollRate)))) * inverselerp(0.3, 0.1, (abs(Pitch) + abs(Roll))))) * (((inverselerp(1, 0, abs(Pitch)) * inverselerp(20, 50, IAS)) * inverselerp(90, 60, abs(RollAngle))) * clamp01((1 - (2 * abs(Trim)))))) + (0.3 * Trim))" priority="0" />
+    <Setter variable="AOA_feed" function="(clamp((((((30 + (30 * clamp01(-Activate8))) - (10 * clamp01((abs(smooth(Roll, 2)) * 2)))) * smooth(clamp(Pitch, -1, 0), 1)) - AOA) * 0.02), 0, 0.5) * inverselerp(30, 80, IAS))" priority="0" />
+    <Setter variable="canopy_opened" function="Activate1" priority="0" />
+    <Setter variable="roll_control" function="((IAS &gt; 5) ? (smooth(Roll, 2) * control_limiter) : (!canopy_opened ? smooth(Roll, 4) : (Roll * 2)))" priority="0" />
+    <Setter variable="pitch_control" function="((IAS &gt; 5) ? ((smooth(Pitch, (0.5 + (1.5 * inverselerp(300, 50, IAS)))) * control_limiter) * Glimiter) : (!canopy_opened ? smooth(Pitch, 4) : (Pitch * 2)))" priority="0" />
+    <Setter variable="yaw_control" function="((IAS &gt; 5) ? (smooth(Yaw, 2) * control_limiter) : (!canopy_opened ? Yaw : (Yaw * 2)))" priority="0" />
+    <Setter variable="brake_control" function="(((IAS &gt; 30) &amp; (AltitudeAgl &gt; min_altitude)) ? clamp01((Brake + clamp01(Activate2))) : clamp01(Activate2))" priority="0" />
     <Setter variable="thrust_control" function="(engine_on ? ((Throttle &gt; 0.95) ? 1.0 : (Throttle * 0.702)) : 0.0)" priority="0" />
-    <Setter variable="canard_pitch" function="clamp((-clamp((pitch_control * (0.25 + (0.75 * inverselerp(80, 30, IAS)))), -0.25, 1) - AOA_feedback), -1, 1)" priority="0" />
-    <Setter variable="canardL" function="clamp((((AOA / 45) + canard_pitch) - ((roll_control * inverselerp(-10, -20, AOA)) * 0.25)), -1, 1)" priority="0" />
-    <Setter variable="canardR" function="clamp((((AOA / 45) + canard_pitch) + ((roll_control * inverselerp(-10, -20, AOA)) * 0.25)), -1, 1)" priority="0" />
-    <Setter variable="flaperonL" function="clamp((clamp(pitch_control, -1.0, 0.5) + (roll_control * inverselerp(-30, -20, AOA))), -1, 1)" priority="0" />
-    <Setter variable="flaperonR" function="clamp((clamp(pitch_control, -1.0, 0.5) - (roll_control * inverselerp(-30, -20, AOA))), -1, 1)" priority="0" />
-
-</Variables>
+    <Setter variable="canard_pitch" function="((((((pitch_control * ((pitch_control &lt; 0) ? 0.5 : (0.1 + (0.9 * inverselerp(80, 30, IAS))))) * (inverselerp((30 + (40 * clamp01(-Activate8))), 10, abs(AOA)) + 1)) + AOA_feed) - (AOA / 45)) + (((-rate(AOA) * 0.01) * inverselerp(200, 100, IAS)) * clamp01(-Activate8))) + autotrim)" priority="0" />
+    <Setter variable="canardL" function="clamp((-canard_pitch - ((clamp01(-(roll_control + roll_damper)) * inverselerp(-5, -20, AOA)) * 0.5)), -1, 1)" priority="0" />
+    <Setter variable="canardR" function="clamp((-canard_pitch - ((clamp01((roll_control + roll_damper)) * inverselerp(-5, -20, AOA)) * 0.5)), -1, 1)" priority="0" />
+    <Setter variable="flaperonL" function="clamp((((pitch_control * ((pitch_control &lt; 0) ? 1 : 0.5)) + pitch_damper) + ((roll_control + roll_damper) * inverselerp(-30, -20, AOA))), -1, 1)" priority="0" />
+    <Setter variable="flaperonR" function="clamp((((pitch_control * ((pitch_control &lt; 0) ? 1 : 0.5)) + pitch_damper) - ((roll_control + roll_damper) * inverselerp(-30, -20, AOA))), -1, 1)" priority="0" />
+    <Setter variable="rudder" function="(yaw_control + yaw_damper)" priority="0" />
+  </Variables>
   <Assembly>
     <Parts>
       <Part id="1" partType="Cockpit-4" position="2.375253E-05,4.062451,-0.1881936" rotation="0,0,0" drag="0,0,0,0,0,0" materials="7,0,1" scale="1,1,1" calculateDrag="false" partCollisionResponse="Default">

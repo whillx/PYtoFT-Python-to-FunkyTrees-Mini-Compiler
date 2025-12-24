@@ -115,6 +115,7 @@ def get_canard_pitch(pitch_input) -> float:
     global AOA
     pitch_limiter = (0.5 if pitch_input < 0 else 0.1+0.9*inverselerp(80,30,IAS))
     aoa_fade = inverselerp(30+40*clamp01(-Activate8),10,abs(AOA))
+    aoa_fade += 1
     return pitch_input*pitch_limiter*aoa_fade
     
 def get_Glimiter(min_G, max_G)-> float:
