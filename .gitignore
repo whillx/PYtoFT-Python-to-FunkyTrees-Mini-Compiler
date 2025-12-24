@@ -1,0 +1,8 @@
+.vscode
+/build/
+/dist/
+/__pycache__/
+*.pyc
+lib/__pycache__/
+_user
+*.spec
