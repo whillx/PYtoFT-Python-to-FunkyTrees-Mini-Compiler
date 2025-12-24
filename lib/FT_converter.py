@@ -353,7 +353,7 @@ exclude_vars = {}
 def py_to_ft(_source_file_path, print_output: bool = False) -> dict:
     global exclude_vars
 
-    print("Converting variables....\n")
+    print("Converting variables ....\n")
     start_time = time.time()
     
     # ---------- load source ----------

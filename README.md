@@ -11,6 +11,10 @@ The tool can:
 - Update the .xml file next to your .py script, or
 - Output the generated XML code directly to the console for copy-paste use.
 
+> [!CAUTION]
+>It is not recommended to use this tool unless you are familiar with the basics of Python and how Funky Trees work in SimplePlanes.
+>Incorrectly written Python code may result in conversion errors or unexpected in-game behavior. Use this tool at your own risk.
+
 ## How It Works
 
 - Parses variable definitions from a Python script using [ast](https://docs.python.org/3/library/ast.html) module.
@@ -42,6 +46,7 @@ The tool can:
 ## Example Script
 
 Full working demo script: [demo script](0_demo_plane.py)
+
 Demo Plane XML: [Pyphoon demo plane](0_demo_plane.xml)
 
 - The Python script must have the same name as the target SimplePlanes .xml craft file.

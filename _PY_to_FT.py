@@ -100,7 +100,7 @@ def main():
         source_xml_path = source_py_path.with_suffix('.xml')
     if os.path.exists(source_xml_path):
         input(f"You are going to overwrite all Funky Trees functions in {source_xml_path.name}. \n\n■ Press Enter to continue.\n")
-        print(f"Writing to XML file: {source_xml_path.name}\n")
+        print(f"Writing to XML file: {source_xml_path.name} ....\n")
         write_to_xml = True
     else:
         input(f"{source_xml_path.name} does not exist in {target_dir}. Output will be written to console. \n\n■ Press Enter to continue.\n")
@@ -135,4 +135,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print(f"▲ ERROR: {e}\n")
-    input("■ Press any key to exit....")
+    input("■ Press any key to exit ....")
