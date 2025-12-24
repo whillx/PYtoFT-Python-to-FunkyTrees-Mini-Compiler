@@ -61,7 +61,7 @@ def get_target_directory():
     while True:
         print("Do you want to directly export to your SimplePlanes XML savings directory?\n")
         print("1: Yes (make sure you have an aircraft with the same name as your .py file)\n2: No (please put your aircraft XML file in current directory)\n")
-        user_input = input("Enter 1 or 2: ")
+        user_input = input("■ Enter 1 or 2: ")
         if user_input.strip() == "1" or user_input.strip() == "2":
             if user_input.strip() == "2":
                 save_config(0,"")
@@ -73,11 +73,11 @@ def get_target_directory():
     while True:
         folder = choose_directory()
         if not folder:
-            input("No directory selected, press Enter to try again.\n")
+            input("■ No directory selected, press Enter to try again.\n")
         elif not is_valid_directory(folder):
-            input("Please select the folder named 'AircraftDesigns', press Enter to try again.\n")
+            input("■ Please select the folder named 'AircraftDesigns', press Enter to try again.\n")
         else:
-            input(f"You have selected: {folder}\n\nPress Enter to continue.\n")
+            input(f"You have selected: {folder}\n\n■ Press Enter to continue.\n")
             save_config(1, folder)
             return folder
 
@@ -91,7 +91,7 @@ def main():
         print(f"Using source file: {source_py_files[0].name}\n")
 
     source_py_path = source_py_files[0]
-    input("Press Enter to start conversion.\n")
+    input("■ Press Enter to start conversion.\n")
     export_var_dic = py_to_ft(source_py_path)
 
     if target_dir:
@@ -99,11 +99,11 @@ def main():
     else:
         source_xml_path = source_py_path.with_suffix('.xml')
     if os.path.exists(source_xml_path):
-        input(f"You are going to overwrite all funkey tree functions in {source_xml_path.name}. \n\nPress Enter to continue.\n")
+        input(f"You are going to overwrite all Funky Trees functions in {source_xml_path.name}. \n\n■ Press Enter to continue.\n")
         print(f"Writing to XML file: {source_xml_path.name}\n")
         write_to_xml = True
     else:
-        input(f"{source_xml_path.name} does not exist in {target_dir}. Output will be written to console. \n\nPress Enter to continue.\n")
+        input(f"{source_xml_path.name} does not exist in {target_dir}. Output will be written to console. \n\n■ Press Enter to continue.\n")
         write_to_xml = False
 
     # Convert dictionary to XML setter strings
@@ -125,7 +125,7 @@ def main():
 
 
 if __name__ == "__main__": 
-    print(f'Python to Funky Trees Converter by Whills v{version}\n')
+    print(f'Python to Funky Trees Mini Compiler by Whills v{version}\n')
     try:
         target_dir = get_target_directory()
         if target_dir:
@@ -134,5 +134,5 @@ if __name__ == "__main__":
             print("Using current directory as output directory.\n")
         main()
     except Exception as e:
-        print(f"ERROR: {e}\n")
-    input("Press any key to exit....")
+        print(f"▲ ERROR: {e}\n")
+    input("■ Press any key to exit....")

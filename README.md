@@ -32,9 +32,7 @@ The tool can:
 
 ## Run Locally (Python)
 
-- Install Python 3
-
-- Download or clone the project
+- Install Python 3 and download or clone the project
 
 - Run:
     ```bash
@@ -43,7 +41,8 @@ The tool can:
 
 ## Example Script
 
-Download demo script: [demo script](0_demo_plane.py)
+Full working demo script: [demo script](0_demo_plane.py)
+Demo Plane XML: [Pyphoon demo plane](0_demo_plane.xml)
 
 - The Python script must have the same name as the target SimplePlanes .xml craft file.
 - Do not start your file name with an underscore.

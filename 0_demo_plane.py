@@ -4,7 +4,7 @@ from _FT_functions import * # import built-in Funky Trees functions and variable
 
 # from _user._common_FCS import * # experimental: your can import your common functions so you don't neeed to rewrite them in every script.
 
-main_loop_name = "_process" #the name of the main function
+main_loop_name = "_process" # the name of the main function
 exclude = ["start_mission_timer"]  #list of variable names to be excluded from conversion, you may need to add some aircraft-part-exported variables here
 
 # ========== program start ==========
@@ -122,7 +122,7 @@ def get_Glimiter(min_G, max_G)-> float:
     return smooth(
         0.25
         +0.75*inverselerp(max_G+1,max_G-1,VerticalG)
-        -0.75*inverselerp(min_G+1,min_G-1,VerticalG),0.2+0.3*inverselerp(max_G,max_G+2,VerticalG)
+        -0.75*inverselerp(min_G+1,min_G-1,VerticalG),0.2+0.1*inverselerp(max_G,max_G+2,VerticalG)
         )
 
 def get_autotrim(manual_trim_mult, max_trim)-> float:
