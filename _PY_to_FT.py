@@ -99,11 +99,11 @@ def main():
     else:
         source_xml_path = source_py_path.with_suffix('.xml')
     if os.path.exists(source_xml_path):
-        input(f"You are going to overwrite all Funky Trees functions in {source_xml_path.name}. \n\n■ Press Enter to continue.\n")
+        input(f"You are about to overwrite all Funky Trees functions in {source_xml_path.name}. \n\n■ Press Enter to continue.\n")
         print(f"Writing to XML file: {source_xml_path.name} ....\n")
         write_to_xml = True
     else:
-        input(f"{source_xml_path.name} does not exist in {source_py_path.parent}.\n\n■ Output will be written to console. Press Enter to continue.\n")
+        input(f"{source_xml_path.name} does not exist in {target_dir if target_dir else source_py_path.parent }.\n\n■ Output will be written to console. Press Enter to continue.\n")
         write_to_xml = False
 
     # Convert dictionary to XML setter strings

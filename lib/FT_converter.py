@@ -298,7 +298,7 @@ def emit_c_style(node):
         right = emit_c_style(node.comparators[0])
         op = node.ops[0]
         ops = {
-            ast.Eq: "==",
+            ast.Eq: "=", # funky tress does not support == :(
             ast.NotEq: "!=",
             ast.Lt: "<",
             ast.LtE: "<=",
@@ -424,11 +424,11 @@ def py_to_ft(_source_file_path, print_output: bool = False) -> dict:
 
     collect_functions(tree, functions_dic)
 
-    # Collect and process imported modules (excluding _FT_functions)
+    # Collect and process imported modules (excluding FT_functions)
     processed_modules = set()
 
     def process_module(mod_name):
-        if mod_name in processed_modules or '_FT_functions' in mod_name:
+        if mod_name in processed_modules or 'FT_functions' in mod_name:
             return
         p = Path(__file__).resolve().parent.parent
         processed_modules.add(mod_name)
@@ -447,11 +447,11 @@ def py_to_ft(_source_file_path, print_output: bool = False) -> dict:
                 if isinstance(node, ast.Import):
                     for alias in node.names:
                         m = alias.name
-                        if '_FT_functions' not in m:
+                        if 'FT_functions' not in m:
                             mod_imported.add(m)
                 elif isinstance(node, ast.ImportFrom):
                     m = node.module
-                    if m and '_FT_functions' not in m:
+                    if m and 'FT_functions' not in m:
                         mod_imported.add(m)
             for m in mod_imported:
                 process_module(m)
@@ -461,11 +461,11 @@ def py_to_ft(_source_file_path, print_output: bool = False) -> dict:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 mod_name = alias.name
-                if '_FT_functions' not in mod_name:
+                if 'FT_functions' not in mod_name:
                     imported_modules.add(mod_name)
         elif isinstance(node, ast.ImportFrom):
             mod_name = node.module
-            if mod_name and '_FT_functions' not in mod_name:
+            if mod_name and 'FT_functions' not in mod_name:
                 imported_modules.add(mod_name)
 
     for mod_name in imported_modules:
@@ -503,7 +503,7 @@ def py_to_ft(_source_file_path, print_output: bool = False) -> dict:
         main_body = [node for node in tree.body if (isinstance(node, ast.Assign) or isinstance(node, ast.AugAssign) or isinstance(node, ast.If))] + process_func.body
     else:
         main_body = [node for node in tree.body if (isinstance(node, ast.Assign) or isinstance(node, ast.AugAssign) or isinstance(node, ast.If))]
-        print(f"main loop function not found, will convert only global variables")
+        print(f"Main loop function not found, will convert only global variables.")
 
     exclude_vars.update(local_vars)
 

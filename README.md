@@ -25,10 +25,10 @@ The tool can:
 
 ## How to Use (Windows)
 
-- Go to the Releases section and download the .zip file.
+- Go to the [Releases section](https://github.com/whillx/PYtoFT-Python-to-FunkyTrees-Mini-Compiler/releases) and download the .zip file.
 - Unzip the downloaded archive.
-- Place the Python .py file you want to convert in the same directory as PY_to_FT.exe.
-- Double-click PY_to_FT.exe to start the conversion.
+- Place the Python .py file you want to convert in the same directory as _PY_to_FT.exe.
+- Run _PY_to_FT.exe to start the conversion.
 - If you choose to export directly to your SimplePlanes .xml save:
     - Select the folder containing the .xml file.
     - Ensure the .xml file has the SAME NAME as your .py file.
@@ -38,7 +38,7 @@ The tool can:
 
 ## Run Locally (Python)
 
-- Install Python 3 and download or clone the project
+- Install Python 3 and download or clone [this project](https://github.com/whillx/PYtoFT-Python-to-FunkyTrees-Mini-Compiler)
 
 - Run:
     ```bash
@@ -55,43 +55,34 @@ Demo airplane XML: [Pyphoon demo plane](0_demo_plane.xml)
 - Do not start your file name with an underscore.
 
 ```python
-from _FT_functions import * # import built-in Funky Trees functions and variables.
+from lib.FT_functions import * # import built-in Funky Trees functions and variables.
 main_loop_name = "_process" # the name of the main function
-exclude = ["start_mission_timer"]  # list of variable names to be excluded from the conversion, you may need to add some aircraft-part-exported variables here.
+exclude = ["exported_var"]  # list of variable names to be excluded from the conversion,
+                            # you may need to add some aircraft-part-exported variables here.
 
 # ========== program start ==========
 # optional: declare your global variables
-min_altitude = 3.0
-start_mission_timer = False
+my_global_var = 1.0
+exported_var = False
 
-# main loop function
-# all variables declared inside this function as well as all global variables will be converted to in-game variables
-# you can also do not write this function, then only global variables will be converted
+# main loop function: the control logic in this function will be executed once every frame in game.
+# all variables declared inside this function + all global variables will be converted to in-game variables.
+# you can also do not write this function, then only global variables will be converted.
 def _process() -> None:
-    global min_altitude
-    global start_mission_timer
-    mach_number = get_mach_number()
-    if AltitudeAgl > min_altitude:
-        pitch_control = Pitch - 0.01*PitchRate
-    else:
-        pitch_control = Pitch
-
-    if start_mission_timer:
-        if IAS > 50:
-            my_variable = foo(2000)
+    global my_global_var
+    global exported_var
+    simple_var = 2000.0
+    if my_global_var:
+        if IAS > exported_var:
+            another_simple_var = foo(simple_var)
         else:
-            my_variable = 0
+            another_simple_var = 0
     else:
-        my_variable = -1
+        another_simple_var = -1
 
 # below are helper functions, make sure all functions have return values in all cases.
 # it's not recommended to call other helper functions inside helper functions.
 # default argument values are *NOT* supported and do *NOT* use recursion!
-
-def get_mach_number() -> float:
-    speed_of_sound = 340.3
-    return TAS/(speed_of_sound-0.0041*Altitude if Altitude < 11000 else 295.2)
-
 def foo(some_value) -> float:
     input_val = some_value
     if Altitude > 200:
@@ -100,13 +91,19 @@ def foo(some_value) -> float:
         input_val -=2
     result = input_val + bar()
     return result
-    
-def bar()-> float :
-    if IAS>10:
+
+def bar() -> float:
+    if IAS > 10:
         return 5
     else:
         return 0
 
+```
+The script above can be converted to the following XML code:
+```xml
+<Setter variable="my_global_var" function="1.0" priority="0" />
+<Setter variable="simple_var" function="2000.0" priority="0" />
+<Setter variable="another_simple_var" function="(my_global_var ? ((IAS &gt; exported_var) ? (((Altitude &gt; 200) ? (simple_var + 2) : (simple_var - 2)) + ((IAS &gt; 10) ? 5 : 0)) : 0) : -1)" priority="0" />
 ```
 
 > [!NOTE]
@@ -120,6 +117,12 @@ def bar()-> float :
 > [!CAUTION]
 > Always backup your `.xml` craft file before running the conversion.
 > The conversion will overwrite ALL Funky Trees codes you have already written in game in Variable Setters.
+
+## Next Steps
+
+I hope you find this tool useful. In the future, it would be interesting to support the conversion of other popular languages (such as C#, Java, or JavaScript) into Funky Trees; however, this is currently beyond the scope of my skills.
+
+I may also pursue future updates to expand support for additional Python features.
 
 If you find this work useful, any amount of support would be appreciated: [Patreon](https://www.patreon.com/c/WhillsBuildsPlanes)
 

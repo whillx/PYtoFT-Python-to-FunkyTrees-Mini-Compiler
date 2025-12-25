@@ -41,6 +41,7 @@ GForce = 0.0 # - The acceleration and gravitational "force" acting on the cockpi
 GearDown = False # - true if the landing gear is down, else false.
 VerticalG = 0.0 # - The signed vertical component of the "G Force".
 SelectedWeaponName = "MyWeapon" # - The name of the selected weapon
+SelectedWeapon = "MyWeapon"
 Latitude = 0.0 # - The North/South position of the craft (metres)
 Longitude = 0.0 # - The East/West position of the craft (metres)
 PitchRate = 0.0 # - The pitch angular velocity in degrees/second
