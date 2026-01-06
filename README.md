@@ -1,6 +1,5 @@
 # PYtoFT
 Python to Funky Trees Mini Compiler
-by Whills
 
 ## Overview
 
@@ -34,7 +33,7 @@ The tool can:
     - Ensure the .xml file has the SAME NAME as your .py file.
 - If you choose to export to the current directory:
     - Make sure the corresponding .xml file is already present in the same directory as the .py file.
-- You may need to reload your aircraft in game to see the to your Funky Trees code changes.
+- You may need to reload your aircraft in game to see your Funky Trees code changes.
 
 ## Run Locally (Python)
 

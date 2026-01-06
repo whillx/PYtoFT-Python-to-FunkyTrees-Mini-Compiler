@@ -1,7 +1,7 @@
 from pathlib import Path
 import re
 
-def insert_variables_text(xml_path: str, variables_content: str, path_checked: bool = True) -> None:
+def insert_variables_text(xml_path: str | Path, variables_content: str, path_checked: bool = True) -> None:
     """
     Insert or replace content inside a <Variables> block
     based on the presence of a <Variables /> tag.

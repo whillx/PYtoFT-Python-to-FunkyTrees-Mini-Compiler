@@ -38,7 +38,7 @@ def save_config(preference: int, path: str):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump({PREFERENCE_KEY: preference, CONFIG_KEY: path,},f,indent=4)
 
-def is_valid_directory(path: str) -> bool:
+def is_valid_directory(path: str):
     return (
         path
         and os.path.isdir(path)

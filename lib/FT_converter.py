@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from graphlib import TopologicalSorter
 
-# Python to Funkey Trees Converter by Whills v1.0
+# Python to Funkey Trees Converter by Whills
 
 class Substituter(ast.NodeTransformer):
     def __init__(self, env, func_returns, constants=None, substitute_args=True):
@@ -78,6 +78,8 @@ def reduce_block_to_return(body_stmts, env, func_returns):
     for stmt in body_stmts:
         if isinstance(stmt, ast.Return):
             ret_value = copy.deepcopy(stmt.value)
+            if ret_value == None:
+                raise ValueError(f"{body_stmts.name} cannot return None")
             ret_value = Substituter(local_env, func_returns).visit(ret_value)
             ast.fix_missing_locations(ret_value)
             if ret_expr is None:
@@ -188,6 +190,8 @@ def reduce_function_to_expr(func_def, func_returns):
 
         elif isinstance(stmt, ast.Return):
             ret_value = copy.deepcopy(stmt.value)
+            if ret_value == None:
+                raise ValueError(f"{func_def.name} cannot return None")
             ret_value = Substituter(env, func_returns).visit(ret_value)
             ast.fix_missing_locations(ret_value)
             if ret_expr is None:
