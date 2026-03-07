@@ -434,7 +434,7 @@ def py_to_ft(_source_file_path, print_output: bool = False) -> dict:
     def process_module(mod_name):
         if mod_name in processed_modules or 'FT_functions' in mod_name:
             return
-        p = Path(__file__).resolve().parent.parent
+        p = Path(_source_file_path).resolve().parent
         processed_modules.add(mod_name)
         parts = mod_name.split('.')
         if len(parts) == 1:
