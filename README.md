@@ -22,26 +22,26 @@ The tool can:
 - Converts them into SimplePlanes-compatible Funky Trees expressions.
 - Outputs the result as XML code, either by injecting it into an existing craft file or printing it for manual use.
 
-## How to Use (Windows)
+## How to Use (GUI version, Windows)
 
 - Go to the [Releases section](https://github.com/whillx/PYtoFT-Python-to-FunkyTrees-Mini-Compiler/releases) and download the .zip file.
 - Unzip the downloaded archive.
-- Place the Python .py file you want to convert in the same directory as _PY_to_FT.exe.
-- Run _PY_to_FT.exe to start the conversion.
-- If you choose to export directly to your SimplePlanes .xml save:
-    - Select the folder containing the .xml file.
-    - Ensure the .xml file has the SAME NAME as your .py file.
-- If you choose to export to the current directory:
-    - Make sure the corresponding .xml file is already present in the same directory as the .py file.
+- Run PY_to_FT_GUI.exe and choose your python script and the output XML file.
+- Click "Convert" button to start conversion.
+- If you didn't choose the XML file, the output will be shown in the text box for copy-paste use.
 - You may need to reload your aircraft in game to see your Funky Trees code changes.
 
 ## Run Locally (Python)
 
 - Install Python 3 and download or clone [this project](https://github.com/whillx/PYtoFT-Python-to-FunkyTrees-Mini-Compiler)
 
-- Run:
+- Run (CLI / GUI):
     ```bash
     python _PY_to_FT.py
+    ```
+    or 
+    ```bash
+    python _PY_to_FT_GUI.py
     ```
 
 ## Example Script
