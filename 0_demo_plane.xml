@@ -3,14 +3,14 @@
   <Variables>
     <Setter variable="min_altitude" function="3.0" priority="0" />
     <Setter variable="timer" function="(start_mission_timer ? (timer + delta) : 0.0)" priority="0" />
-    <Setter variable="AOA" function="lerp(-PitchAngle, (pingpong(abs(AngleOfAttack), 90) * sign(AngleOfAttack)), clamp01(((IAS - 5) / 10)))" priority="0" />
     <Setter variable="delta" function="(Time - last_frame_time)" priority="0" />
     <Setter variable="AIControl" function="((FireWeapons &amp; (Time &lt; 1)) ? true : AIControl)" priority="0" />
-    <Setter variable="Glimiter" function="smooth(((0.25 + (0.75 * inverselerp((9 + 1), (9 - 1), VerticalG))) - (0.75 * inverselerp((-3 + 1), (-3 - 1), VerticalG))), ((rate(Glimiter) &lt; 0) ? 1.5 : 0.1))" priority="0" />
+    <Setter variable="Glimiter" function="smooth(((0.25 + (0.75 * inverselerp((9 + 1), (9 - 1), VerticalG))) - (0.75 * inverselerp((-3.5 + 1), (-3.5 - 1), VerticalG))), ((rate(Glimiter) &lt; 0) ? 1.5 : 0.1))" priority="0" />
+    <Setter variable="AOA" function="lerp(-PitchAngle, (pingpong(abs(AngleOfAttack), 90) * sign(AngleOfAttack)), clamp01(((IAS - 5) / 10)))" priority="0" />
+    <Setter variable="mach_number" function="(TAS / ((Altitude &lt; 11000) ? (340.3 - (0.0041 * Altitude)) : 295.2))" priority="0" />
     <Setter variable="engine_on" function="((Fuel &gt; 0.01) ? true : false)" priority="0" />
     <Setter variable="last_frame_time" function="Time" priority="0" />
     <Setter variable="control_limiter" function="clamp((((30000 * pow(IAS, -2)) * (0.9 + (0.1 * Fuel))) * ((VerticalG &lt; 1) ? 0.7 : 1)), 0.01, 1)" priority="0" />
-    <Setter variable="mach_number" function="(TAS / ((Altitude &lt; 11000) ? (340.3 - (0.0041 * Altitude)) : 295.2))" priority="0" />
     <Setter variable="pitch_damper" function="((clamp((-clamp(PitchRate, -180, 180) * (0.01 + (0.005 * inverselerp(400, 200, IAS)))), -1, 1) * control_limiter) * inverselerp(2, 5, abs(PitchRate)))" priority="0" />
     <Setter variable="roll_damper" function="((((RollRate * 0.005) * inverselerp(20, 200, IAS)) * control_limiter) * inverselerp(2, 8, abs(RollRate)))" priority="0" />
     <Setter variable="yaw_damper" function="(((-YawRate * (0.02 + (0.03 * inverselerp(250, 100, IAS)))) * control_limiter) * inverselerp(1, 4, abs(YawRate)))" priority="0" />

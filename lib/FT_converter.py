@@ -30,21 +30,67 @@ class Substituter(ast.NodeTransformer):
             name = node.func.id
             if name in self.func_returns:
                 expr = copy.deepcopy(self.func_returns[name])
-                # Get the function definition to map parameters
-                func_def = functions_dic[name]  # Assuming 'functions_dic' is in scope or passed
-                if len(node.args) != len(func_def.args.args):
+                func_def = functions_dic[name]
+                params = func_def.args.args
+                defaults = func_def.args.defaults
+                default_offset = len(params) - len(defaults)
+                required_args = len(params) - len(defaults)
+                param_names = [param.arg for param in params]
+                provided_args = {}
+
+                if len(node.args) > len(params):
                     raise ValueError(f"Argument count mismatch for {name}")
-                # Create a temp env for parameter substitution
+
+                for i, arg_node in enumerate(node.args):
+                    provided_args[param_names[i]] = copy.deepcopy(arg_node)
+
+                for keyword in node.keywords:
+                    if keyword.arg is None:
+                        raise ValueError(f"Unsupported keyword expansion for {name}")
+                    if keyword.arg not in param_names:
+                        raise ValueError(f"Unknown keyword argument {keyword.arg} for {name}")
+                    if keyword.arg in provided_args:
+                        raise ValueError(f"Multiple values for argument {keyword.arg} in {name}")
+                    provided_args[keyword.arg] = copy.deepcopy(keyword.value)
+
+                if len(provided_args) < required_args:
+                    missing_required = [
+                        param_names[i]
+                        for i in range(required_args)
+                        if param_names[i] not in provided_args
+                    ]
+                    if missing_required:
+                        raise ValueError(f"Missing required arguments for {name}: {', '.join(missing_required)}")
+
                 if self.substitute_args:
                     param_env = {}
-                    for i, arg in enumerate(func_def.args.args):
-                        substituted_arg = copy.deepcopy(node.args[i])
-                        substituted_arg = Substituter(self.env, self.func_returns, self.constants, self.substitute_args).visit(substituted_arg)
+                    for i, param in enumerate(params):
+                        if param.arg in provided_args:
+                            substituted_arg = copy.deepcopy(provided_args[param.arg])
+                            substituted_arg = Substituter(
+                                self.env,
+                                self.func_returns,
+                                self.constants,
+                                self.substitute_args,
+                            ).visit(substituted_arg)
+                        else:
+                            default_value = copy.deepcopy(defaults[i - default_offset])
+                            substituted_arg = Substituter(
+                                self.env,
+                                self.func_returns,
+                                self.constants,
+                                self.substitute_args,
+                            ).visit(default_value)
                         ast.fix_missing_locations(substituted_arg)
-                        param_env[arg.arg] = substituted_arg
+                        param_env[param.arg] = substituted_arg
                 else:
-                    param_env = {arg.arg: copy.deepcopy(node.args[i]) for i, arg in enumerate(func_def.args.args)}
-                # Substitute parameters in the expression
+                    param_env = {}
+                    for i, param in enumerate(params):
+                        if param.arg in provided_args:
+                            param_env[param.arg] = copy.deepcopy(provided_args[param.arg])
+                        else:
+                            default_value = copy.deepcopy(defaults[i - default_offset])
+                            param_env[param.arg] = default_value
                 expr = Substituter(param_env, self.func_returns, self.constants, self.substitute_args).visit(expr)
                 ast.fix_missing_locations(expr)
                 return expr
@@ -359,6 +405,9 @@ def py_to_ft(_source_file_path, print_output: bool = False) -> dict:
 
     print("Converting variables ....\n")
     start_time = time.time()
+
+    functions_dic.clear()
+    function_returns_dic.clear()
     
     # ---------- load source ----------
     source_py_path = _source_file_path
@@ -379,30 +428,89 @@ def py_to_ft(_source_file_path, print_output: bool = False) -> dict:
 
     # ---------- collect globals and extract main loop name and exclude list----------
 
-    global_exprs = {}
-
+    main_globals = {}
     for node in tree.body:
         if isinstance(node, ast.Assign):
             target = node.targets[0]
             if isinstance(target, ast.Name):
-                global_exprs[target.id] = node.value
+                main_globals[target.id] = node.value
 
-    # Extract main_loop_name from globals
     try:
-        main_loop_name = ast.literal_eval(global_exprs['main_loop_name'])
+        main_loop_name = ast.literal_eval(main_globals['main_loop_name'])
     except KeyError:
         main_loop_name = '_process'
 
-    # Extract exclude list if present
     exclude_list = []
-    if 'exclude' in global_exprs:
+    if 'exclude' in main_globals:
         try:
-            exclude_list = ast.literal_eval(global_exprs['exclude'])
+            exclude_list = ast.literal_eval(main_globals['exclude'])
             if not isinstance(exclude_list, list):
                 exclude_list = []
         except:
             exclude_list = []
 
+    # ---------- build master script from main script + imported modules ----------
+
+    def collect_imported_module_names(module_tree):
+        imported = []
+        for node in module_tree.body:
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    mod_name = alias.name
+                    if 'FT_functions' not in mod_name:
+                        imported.append(mod_name)
+            elif isinstance(node, ast.ImportFrom):
+                mod_name = node.module
+                if mod_name and 'FT_functions' not in mod_name:
+                    imported.append(mod_name)
+        return imported
+
+    def resolve_module_path(base_dir: Path, mod_name: str) -> Path | None:
+        parts = mod_name.split('.')
+        if len(parts) == 1:
+            module_path = base_dir / f"{mod_name}.py"
+        else:
+            module_path = base_dir.joinpath(*parts[:-1]) / f"{parts[-1]}.py"
+        if module_path.exists():
+            return module_path
+        return None
+
+    processed_modules = set()
+
+    def build_master_body(module_tree, module_dir: Path, is_main_module: bool = False):
+        master_body = []
+
+        for mod_name in collect_imported_module_names(module_tree):
+            if mod_name in processed_modules or 'FT_functions' in mod_name:
+                continue
+            mod_path = resolve_module_path(module_dir, mod_name)
+            if mod_path is None:
+                continue
+            processed_modules.add(mod_name)
+            with mod_path.open("r", encoding="utf-8") as mod_file:
+                mod_tree = ast.parse(mod_file.read())
+            master_body.extend(build_master_body(mod_tree, mod_path.parent, False))
+
+        for node in module_tree.body:
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                continue
+            if not is_main_module and isinstance(node, ast.Assign):
+                target = node.targets[0]
+                if isinstance(target, ast.Name) and target.id in {"main_loop_name", "exclude"}:
+                    continue
+            master_body.append(copy.deepcopy(node))
+
+        return master_body
+
+    master_body = build_master_body(tree, source_py_path.resolve().parent, True)
+    master_tree = ast.Module(body=master_body, type_ignores=[])
+
+    global_exprs = {}
+    for node in master_body:
+        if isinstance(node, ast.Assign):
+            target = node.targets[0]
+            if isinstance(target, ast.Name):
+                global_exprs[target.id] = copy.deepcopy(node.value)
 
     exclude_vars = set(global_exprs.keys())
     exclude_vars.update(exclude_list)
@@ -426,54 +534,7 @@ def py_to_ft(_source_file_path, print_output: bool = False) -> dict:
                 called.add(node.func.id)
         return called
 
-    collect_functions(tree, functions_dic)
-
-    # Collect and process imported modules (excluding FT_functions)
-    processed_modules = set()
-
-    def process_module(mod_name):
-        if mod_name in processed_modules or 'FT_functions' in mod_name:
-            return
-        p = Path(_source_file_path).resolve().parent
-        processed_modules.add(mod_name)
-        parts = mod_name.split('.')
-        if len(parts) == 1:
-            mod_file = p / f"{mod_name}.py"
-        else:
-            mod_file = p.joinpath(*parts[:-1]) / f"{parts[-1]}.py"
-        if mod_file.exists():
-            with mod_file.open("r", encoding="utf-8") as f:
-                mod_tree = ast.parse(f.read())
-            collect_functions(mod_tree, functions_dic)
-            # Collect its own imports
-            mod_imported = set()
-            for node in ast.walk(mod_tree):
-                if isinstance(node, ast.Import):
-                    for alias in node.names:
-                        m = alias.name
-                        if 'FT_functions' not in m:
-                            mod_imported.add(m)
-                elif isinstance(node, ast.ImportFrom):
-                    m = node.module
-                    if m and 'FT_functions' not in m:
-                        mod_imported.add(m)
-            for m in mod_imported:
-                process_module(m)
-
-    imported_modules = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                mod_name = alias.name
-                if 'FT_functions' not in mod_name:
-                    imported_modules.add(mod_name)
-        elif isinstance(node, ast.ImportFrom):
-            mod_name = node.module
-            if mod_name and 'FT_functions' not in mod_name:
-                imported_modules.add(mod_name)
-
-    for mod_name in imported_modules:
-        process_module(mod_name)
+    collect_functions(master_tree, functions_dic)
 
     # Build dependency graph for helper functions
     helper_funcs = {name: func for name, func in functions_dic.items() if name != main_loop_name}
@@ -504,9 +565,15 @@ def py_to_ft(_source_file_path, print_output: bool = False) -> dict:
                 for target in node.targets:
                     if isinstance(target, ast.Name):
                         local_vars.add(target.id)
-        main_body = [node for node in tree.body if (isinstance(node, ast.Assign) or isinstance(node, ast.AugAssign) or isinstance(node, ast.If))] + process_func.body
+        main_body = [
+            node for node in master_body
+            if (isinstance(node, ast.Assign) or isinstance(node, ast.AugAssign) or isinstance(node, ast.If))
+        ] + process_func.body
     else:
-        main_body = [node for node in tree.body if (isinstance(node, ast.Assign) or isinstance(node, ast.AugAssign) or isinstance(node, ast.If))]
+        main_body = [
+            node for node in master_body
+            if (isinstance(node, ast.Assign) or isinstance(node, ast.AugAssign) or isinstance(node, ast.If))
+        ]
         print(f"Main loop function not found, will convert only global variables.")
 
     exclude_vars.update(local_vars)

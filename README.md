@@ -81,7 +81,7 @@ def _process() -> None:
 
 # below are helper functions, make sure all functions have return values in all cases.
 # it's not recommended to call other helper functions inside helper functions.
-# default argument values are *NOT* supported and do *NOT* use recursion!
+# do *NOT* use recursion!
 def foo(some_value) -> float:
     input_val = some_value
     if Altitude > 200:
@@ -109,7 +109,6 @@ The script above can be converted to the following XML code:
 > This tool can only convert **simple functions**. The following Python features are **not currently supported**:
 > - Classes
 > - Recursion
-> - Default arguments
 >
 > If you want to reconfigure the directory of your target output folder, you can delete _PY_to_FT_config.json and run the application again.
 

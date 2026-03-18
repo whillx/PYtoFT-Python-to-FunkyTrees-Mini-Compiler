@@ -3,15 +3,22 @@ from lib.FT_converter import py_to_ft, load_py_file
 from lib.write_to_xml import insert_variables_text
 import json
 import os
+import sys
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog
 
-version = "0.1"
+VERSION = "0.2"
 write_to_xml = False
-CONFIG_FILE = Path("_PY_to_FT_config.json")
 CONFIG_KEY = "aircraft_directory"
 PREFERENCE_KEY = "export_to_aircraft_directory"
+
+def get_executable_dir() -> Path:
+    if getattr(sys, 'frozen', False):
+        return Path(os.path.dirname(sys.executable))
+    return Path(__file__).resolve().parent
+
+CONFIG_FILE = get_executable_dir() / "_PY_to_FT_config.json"
 
 def choose_directory():
     root = tk.Tk()
@@ -34,9 +41,13 @@ def load_config():
         return None
 
 def save_config(preference: int, path: str):
+    config = load_config()
+    if not isinstance(config, dict):
+        config = {}
+    config.update({PREFERENCE_KEY: preference, CONFIG_KEY: path})
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump({PREFERENCE_KEY: preference, CONFIG_KEY: path,},f,indent=4)
+        json.dump(config, f, indent=4)
 
 def is_valid_directory(path: str):
     return (
@@ -125,7 +136,7 @@ def main():
 
 
 if __name__ == "__main__": 
-    print(f'Python to Funky Trees Mini Compiler by Whills v{version}\n')
+    print(f'Python to Funky Trees Mini Compiler by Whills v{VERSION}\n')
     try:
         target_dir = get_target_directory()
         if target_dir:
